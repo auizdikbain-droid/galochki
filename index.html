@@ -1,0 +1,1639 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Галочки</title>
+<meta name="description" content="Задачи по дням, сон и статистика. Работает без интернета.">
+<meta name="theme-color" content="#F5F7FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1219" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Галочки">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<style>
+:root{
+  /* Layout: one-screen notebook. Slim header with tabs, then either the graph-paper grid
+     (tasks pinned left, days on top, totals + sleep pinned at the bottom) or a scrolling stats page. */
+  --paper:#F5F7FB;
+  --sheet:#FFFFFF;
+  --line:#E3E8F1;
+  --line-strong:#C7D1E2;
+  --ink:#19223D;
+  --muted:#66718A;
+  --pen:#2547CB;
+  --on-pen:#FFFFFF;
+  --pen-wash:#E7ECFC;
+  --ok:#1E9A55;
+  --on-ok:#FFFFFF;
+  --ok-wash:#E2F4E9;
+  --red:#D23A2F;
+  --red-wash:#FBE8E6;
+  --marker:rgba(255,204,0,.26);
+  --weekend:#F4F6FA;
+  --shadow:rgba(25,34,61,.12);
+  --sticker-bg:#ECE4FF;
+  --sticker-fg:#4A2A98;
+  --sticker-edge:#D3C4FA;
+  --band:rgba(122,84,230,.09);
+  --sl-fg:38%;
+  --sl-mark:56%;
+  --sl-wash-a:.2;
+  --toast-bg:#19223D;
+  --toast-fg:#F5F7FB;
+  --toast-act:#A9BBFF;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --name:220px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1219; --sheet:#141924; --line:#222A39; --line-strong:#33405A;
+    --ink:#E4E8F1; --muted:#8B95AB; --pen:#7290FF; --on-pen:#0B1020; --pen-wash:#1C2547;
+    --ok:#43CC82; --on-ok:#05200F; --ok-wash:#163324;
+    --red:#FF7568; --red-wash:#3B1E1F; --marker:rgba(255,204,0,.12); --weekend:#171C28;
+    --shadow:rgba(0,0,0,.5); --sticker-bg:#33285C; --sticker-fg:#E2D7FF; --sticker-edge:#4B3C85;
+    --band:rgba(160,130,255,.11); --sl-fg:74%; --sl-mark:64%; --sl-wash-a:.24;
+    --toast-bg:#E4E8F1; --toast-fg:#141924; --toast-act:#2547CB;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1219; --sheet:#141924; --line:#222A39; --line-strong:#33405A;
+  --ink:#E4E8F1; --muted:#8B95AB; --pen:#7290FF; --on-pen:#0B1020; --pen-wash:#1C2547;
+  --ok:#43CC82; --on-ok:#05200F; --ok-wash:#163324;
+  --red:#FF7568; --red-wash:#3B1E1F; --marker:rgba(255,204,0,.12); --weekend:#171C28;
+  --shadow:rgba(0,0,0,.5); --sticker-bg:#33285C; --sticker-fg:#E2D7FF; --sticker-edge:#4B3C85;
+  --band:rgba(160,130,255,.11); --sl-fg:74%; --sl-mark:64%; --sl-wash-a:.24;
+  --toast-bg:#E4E8F1; --toast-fg:#141924; --toast-act:#2547CB;
+  color-scheme:dark;
+}
+
+html{height:100%;box-sizing:border-box;color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{margin:0;height:100%;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--pen);outline-offset:2px}
+
+.app{height:100%;display:flex;flex-direction:column;gap:10px;padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:-.01em}
+.logo{width:24px;height:24px;border-radius:7px;background-color:var(--ok);color:var(--on-ok);display:grid;place-items:center}
+.logo svg{width:16px;height:16px}
+.tabs{display:flex;gap:2px;padding:3px;border-radius:11px;background-color:var(--line)}
+.tab{height:30px;padding:0 14px;border:0;border-radius:8px;background-color:transparent;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background-color:var(--sheet);color:var(--ink);box-shadow:0 1px 2px var(--shadow)}
+.month{display:flex;align-items:center;gap:6px}
+.month h1{margin:0;font-family:var(--f-display);font-weight:500;font-size:19px;letter-spacing:-.01em;min-width:10em;text-align:center;white-space:nowrap}
+.icon-btn,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;border:1px solid var(--line-strong);background-color:var(--sheet);border-radius:9px;cursor:pointer;transition:background-color .15s}
+.icon-btn{width:34px;padding:0}
+.icon-btn svg{width:16px;height:16px}
+.btn{padding:0 12px;font-size:14px;font-weight:500}
+.icon-btn:hover,.btn:hover:not(:disabled){background-color:var(--pen-wash)}
+.btn[aria-pressed="true"],.btn[aria-pressed="true"]:hover{background-color:var(--pen);border-color:var(--pen);color:var(--on-pen)}
+.btn:disabled{opacity:.45;cursor:default}
+.side{margin-left:auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.summary{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.summary b{color:var(--ink);font-weight:600}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background-color:var(--line-strong)}
+.status[data-s="ok"]::before{background-color:var(--ok)}
+.status[data-s="wait"]::before{background-color:var(--muted);animation:blink 1s ease-in-out infinite}
+.status[data-s="err"]{color:var(--red)}
+.status[data-s="err"]::before{background-color:var(--red)}
+.status[data-s="local"]::before{background-color:transparent;border:1.5px solid var(--muted)}
+@keyframes blink{50%{opacity:.25}}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.hint .hv{color:var(--ok)}
+.hint .hx{color:var(--red)}
+.hint kbd{font:inherit;font-size:12px;padding:0 5px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;background-color:var(--sheet);color:var(--ink)}
+
+/* sheet */
+.sheet{flex:1;min-height:0;overflow:auto;background-color:var(--sheet);border:1px solid var(--line-strong);border-radius:12px;scroll-padding:48px 0 90px var(--name);overscroll-behavior:contain}
+.sheet.is-edit{--name:300px}
+.gt{--cell:clamp(38px,calc((100vw - 60px - var(--name)) / var(--days,31)),50px);border-collapse:separate;border-spacing:0;table-layout:fixed;width:calc(var(--name) + var(--cell) * var(--days,31));-webkit-user-select:none;user-select:none}
+.gt th,.gt td{padding:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.gt .name{position:sticky;left:0;z-index:1;width:var(--name);background-color:var(--sheet);border-right-color:var(--line-strong);text-align:left;font-weight:500;padding:0 10px 0 14px}
+.sheet.sx .gt .name{box-shadow:6px 0 10px -8px var(--shadow)}
+.gt thead th{position:sticky;top:0;z-index:2;background-color:var(--sheet);border-bottom-color:var(--line-strong)}
+.gt thead .name{z-index:3}
+.gt th.corner{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);vertical-align:bottom;padding-bottom:10px}
+.gt .day{width:var(--cell);height:48px;text-align:center;vertical-align:middle}
+.day .wd{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.day .dn{display:block;width:26px;height:22px;margin:1px auto 0;line-height:22px;border-radius:999px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.day.we .wd{color:var(--red)}
+.day.future .dn{color:var(--muted);font-weight:500}
+.day.today .dn{background-color:var(--pen);color:var(--on-pen)}
+.gt th.we,.gt td.we{background-color:var(--weekend)}
+.gt .today{background-image:linear-gradient(var(--marker),var(--marker))}
+.gt .sun{border-right-color:var(--line-strong)}
+
+/* check cells */
+.gt td.c{height:var(--cell);text-align:center;vertical-align:middle}
+.cell{display:grid;place-items:center;width:calc(var(--cell) - 10px);height:calc(var(--cell) - 10px);margin:auto;padding:0;border:0;border-radius:8px;background-color:transparent;color:var(--ok);cursor:pointer;touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;transition:background-color .12s ease}
+.cell svg{width:60%;height:60%;max-width:21px;max-height:21px}
+.cell[data-v=""] svg{opacity:0;transition:opacity .12s}
+@media (hover:hover){
+  .cell[data-v=""]:hover{background-color:var(--ok-wash)}
+  .cell[data-v=""]:hover svg{opacity:.45}
+}
+.cell[data-v="v"]{background-color:var(--ok);color:var(--on-ok)}
+.cell[data-v="x"]{background-color:var(--red-wash);color:var(--red)}
+.cell:focus-visible,.scell:focus-visible{outline:2px solid var(--pen);outline-offset:1px}
+.cell.pop,.scell.pop{animation:pop .2s ease-out}
+@keyframes pop{from{transform:scale(.8)}to{transform:scale(1)}}
+
+/* task names */
+.name-in{display:flex;align-items:center;gap:8px;min-width:0}
+.tname{flex:1;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;overflow-wrap:anywhere;font-size:14.5px}
+.tcount{flex:none;display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--ok);font-variant-numeric:tabular-nums}
+.tcount svg{width:12px;height:12px}
+.rename{flex:1;min-width:0;height:30px;padding:0 8px;border:1px solid var(--line-strong);border-radius:7px;background-color:var(--paper);font-size:14px;-webkit-user-select:text;user-select:text}
+.rename:focus{outline:none;border-color:var(--pen);box-shadow:0 0 0 3px var(--pen-wash)}
+.mini{flex:none;width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:6px;background-color:transparent;color:var(--muted);cursor:pointer}
+.mini svg{width:15px;height:15px}
+.mini:hover:not(:disabled){background-color:var(--pen-wash);color:var(--ink)}
+.mini.danger:hover:not(:disabled){background-color:var(--red-wash);color:var(--red)}
+.mini:disabled{opacity:.3;cursor:default}
+.gt .muted{color:var(--muted);font-weight:400;height:52px}
+
+/* add row */
+.gt .add-row th,.gt .add-row td{border-bottom:0;height:54px}
+.add-form{display:flex;gap:6px;align-items:center;margin:0}
+#new-task{flex:1;min-width:0;height:32px;padding:0 10px;border:1px dashed var(--line-strong);border-radius:8px;background-color:transparent;font-size:14px;-webkit-user-select:text;user-select:text}
+#new-task::placeholder{color:var(--muted)}
+#new-task:focus{outline:none;border-style:solid;border-color:var(--pen);background-color:var(--paper)}
+#new-task:disabled{opacity:.6}
+.add-btn{flex:none;width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background-color:var(--pen-wash);color:var(--pen);cursor:pointer;transition:background-color .15s}
+.add-btn svg{width:16px;height:16px}
+.add-btn:hover:not(:disabled){background-color:var(--pen);color:var(--on-pen)}
+.add-btn:disabled{opacity:.5;cursor:default}
+.gt td.add-tail{border-right:0;text-align:left;padding:0 14px}
+.sugg{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sugg-l{font-size:13px;color:var(--muted);margin-right:4px}
+.chip{height:30px;padding:0 12px;border:1px solid var(--line-strong);border-radius:999px;background-color:var(--sheet);font-size:13.5px;cursor:pointer}
+.chip:hover:not(:disabled){border-color:var(--pen);color:var(--pen)}
+.chip:disabled{opacity:.5;cursor:default}
+
+/* bottom rows: totals + sleep, pinned */
+.sheet{display:flex;flex-direction:column}
+.gt{flex:none}
+/* the bottom table sits at the very bottom of the sheet, and stays there while tasks scroll */
+.foot{margin-top:auto;position:sticky;bottom:0;z-index:4}
+.foot th,.foot td{background-color:var(--sheet);border-bottom:0;text-align:center}
+.foot .name{text-align:left}
+.foot .tot-row th,.foot .tot-row td{height:36px;border-top:1px solid var(--line-strong)}
+.foot .tot-row .name{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.foot .sleep-row th,.foot .sleep-row td{height:50px;border-top:1px solid var(--line-strong)}
+.tot-n{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 4px;border-radius:6px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);background-color:color-mix(in srgb,var(--ok) calc(var(--p,0) * 34%),transparent)}
+.tot-n:empty{background-color:transparent}
+.tot-n.full{background-color:var(--ok);color:var(--on-ok)}
+.sticker{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:9px;background-color:var(--sticker-bg);color:var(--sticker-fg);font-weight:700;font-size:13px;transform:rotate(-3deg);box-shadow:0 1px 0 var(--sticker-edge),0 3px 8px var(--shadow);white-space:nowrap}
+.sticker svg{width:13px;height:13px}
+.savg{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:hsl(var(--h,250),60%,var(--sl-fg));white-space:nowrap}
+.savg:empty{display:none}
+.scell{display:grid;place-items:center;width:calc(var(--cell) - 6px);height:34px;margin:auto;padding:0;border:0;border-radius:8px;background-color:transparent;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.scell[data-has="1"]{background-color:hsla(var(--h),75%,55%,var(--sl-wash-a));color:hsl(var(--h),62%,var(--sl-fg))}
+.scell[data-has=""]::after{content:"+";opacity:0;font-size:16px;font-weight:500;color:var(--sticker-fg)}
+@media (hover:hover){
+  .scell[data-has=""]:hover{background-color:var(--sticker-bg)}
+  .scell[data-has=""]:hover::after{opacity:.8}
+}
+
+/* stats + sleep pages */
+.pane{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.pane-in{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:28px}
+.card{background-color:var(--sheet);border:1px solid var(--line-strong);border-radius:12px;padding:18px;min-width:0}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pane h2{margin:0;font-family:var(--f-display);font-weight:500;font-size:20px;letter-spacing:-.01em;text-wrap:balance}
+.pane h3{margin:0;font-size:15px;font-weight:600}
+.sub{margin:0;font-size:13.5px;color:var(--muted)}
+.empty-card{text-align:center;padding:40px 18px;display:grid;gap:12px;justify-items:center}
+
+.stats-wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}
+.tlist{display:flex;flex-direction:column;gap:2px;padding:8px}
+.tlist .eyebrow{padding:6px 8px 8px}
+.titem{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:9px;background-color:transparent;text-align:left;cursor:pointer}
+.titem:hover{background-color:var(--paper)}
+.titem[aria-selected="true"]{background-color:var(--pen-wash)}
+.titem .tn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500}
+.titem .tp{font-size:12.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.titem svg{flex:none;width:28px;height:28px}
+.sdetail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.donuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.dcard{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.dwrap{position:relative;width:100%;max-width:140px;aspect-ratio:1}
+.dwrap svg{display:block;width:100%;height:100%}
+.dc{position:absolute;inset:0;display:grid;place-content:center;line-height:1.1}
+.dc b{font-family:var(--f-display);font-weight:500;font-size:clamp(17px,4.4vw,26px);font-variant-numeric:tabular-nums}
+.dc span{font-size:11.5px;color:var(--muted);margin-top:3px}
+.dlegend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:13.5px;font-variant-numeric:tabular-nums}
+.lg{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.lg i{width:10px;height:10px;border-radius:3px}
+.lg .sw-ok{background-color:var(--ok)}
+.lg .sw-no{background-color:var(--red)}
+.lg.dim{color:var(--muted);font-size:12.5px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.tile{display:flex;flex-direction:column;gap:4px}
+.tile .tv{font-family:var(--f-display);font-weight:500;font-size:24px;font-variant-numeric:tabular-nums}
+.tile .tv small{font-family:var(--f-body);font-size:14px;font-weight:500;color:var(--muted);margin-left:4px}
+.months12{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;margin-top:14px}
+.mcell{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border:0;border-radius:10px;background-color:transparent;cursor:pointer;font-size:12px}
+.mcell:hover{background-color:var(--paper)}
+.mcell[aria-current="true"]{background-color:var(--pen-wash)}
+.mcell svg{width:100%;max-width:52px;height:auto;aspect-ratio:1}
+.mcell .mp{font-weight:600;font-variant-numeric:tabular-nums}
+.mcell .mn{color:var(--muted)}
+
+.sl-top{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr);gap:14px}
+.sl-hero{display:flex;flex-direction:column;gap:6px}
+.sl-big{font-family:var(--f-display);font-weight:500;font-size:64px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:hsl(var(--h),62%,var(--sl-fg));margin-top:6px}
+.sl-big span{font-size:24px;margin-left:6px;letter-spacing:0}
+.sl-hero.none .sl-big{color:var(--muted)}
+.verdict{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:4px 11px;border-radius:999px;background-color:hsla(var(--h),75%,55%,var(--sl-wash-a));color:hsl(var(--h),62%,var(--sl-fg));font-weight:600;font-size:14px}
+.verdict i{width:8px;height:8px;border-radius:50%;background-color:hsl(var(--h),70%,var(--sl-mark))}
+.sl-hero.none .verdict{background-color:var(--line);color:var(--muted)}
+.sl-hero.none .verdict i{background-color:var(--muted)}
+.sl-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.dotv{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle;background-color:hsl(var(--h),70%,var(--sl-mark))}
+.chart-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 14px;margin-bottom:10px}
+.chart{position:relative}
+.chart svg{display:block;width:100%}
+.chart text{font-family:var(--f-body);font-size:11px;fill:var(--muted)}
+.chart text.today{fill:var(--pen);font-weight:700}
+.chart text.vl{fill:var(--ink);font-size:10.5px;font-weight:600}
+.chart .grid-l{stroke:var(--line);stroke-width:1}
+.chart .base{stroke:var(--line-strong);stroke-width:1}
+.chart .band{fill:var(--band)}
+.chart .avg{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:4 4;opacity:.55}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart .hit:hover,.chart .hit:focus-visible{fill:var(--pen-wash);outline:none}
+.chart .bar,.chart .stub,.chart text{pointer-events:none}
+.chart .stub{fill:var(--line-strong)}
+.tip{position:absolute;top:0;transform:translateX(-50%);padding:6px 9px;border-radius:8px;background-color:var(--toast-bg);color:var(--toast-fg);font-size:12.5px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px var(--shadow)}
+.sl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px;margin-top:12px;font-size:12.5px;color:var(--muted)}
+.scale{display:flex;align-items:center;gap:8px}
+.scale i{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,hsl(4,70%,var(--sl-mark)),hsl(318,70%,var(--sl-mark)),hsl(272,70%,var(--sl-mark)))}
+.bandkey{display:flex;align-items:center;gap:7px}
+.bandkey i{width:18px;height:10px;border-radius:3px;background-color:var(--band);border:1px solid var(--sticker-edge)}
+.avgkey{display:flex;align-items:center;gap:7px}
+.avgkey i{width:18px;border-top:1.5px dashed var(--ink);opacity:.55}
+
+/* sleep picker */
+.picker{position:fixed;z-index:30;width:292px;padding:14px;border-radius:14px;background-color:var(--sheet);border:1px solid var(--line-strong);box-shadow:0 12px 32px var(--shadow);display:flex;flex-direction:column;gap:12px}
+.picker.as-sheet{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:18px 18px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pk-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pk-title{font-weight:600}
+.pk-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.pk-chip{height:40px;border:1px solid var(--line-strong);border-radius:9px;background-color:hsla(var(--h),75%,55%,var(--sl-wash-a));color:hsl(var(--h),62%,var(--sl-fg));font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation}
+.pk-chip:hover{border-color:hsl(var(--h),70%,var(--sl-mark))}
+.pk-chip[aria-pressed="true"]{outline:2px solid hsl(var(--h),70%,var(--sl-mark));outline-offset:1px}
+.pk-row{display:flex;gap:6px;margin:0}
+#pk-input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--line-strong);border-radius:9px;background-color:var(--paper);font-size:14px}
+#pk-input:focus{outline:none;border-color:var(--pen);box-shadow:0 0 0 3px var(--pen-wash)}
+.pk-note{margin:0;font-size:12px;color:var(--muted)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:16px;width:max-content;max-width:calc(100% - 32px);padding:11px 14px 11px 16px;border-radius:11px;background-color:var(--toast-bg);color:var(--toast-fg);font-size:14px;box-shadow:0 8px 24px var(--shadow)}
+.toast button{flex:none;border:0;background:none;padding:2px 4px;color:var(--toast-act);font-weight:600;cursor:pointer}
+
+@media (hover:none){.hint .desk{display:none}}
+@media (max-width:900px){
+  .stats-wrap{grid-template-columns:minmax(0,1fr)}
+  .tlist{flex-direction:row;overflow-x:auto;padding:6px;gap:4px}
+  .tlist .eyebrow{display:none}
+  .titem{width:auto;flex:none;max-width:220px}
+  .sl-top{grid-template-columns:minmax(0,1fr)}
+  .months12{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  :root{--name:136px}
+  .sheet.is-edit{--name:230px}
+  .gt{--cell:40px}
+  .app{gap:8px;padding-block:10px}
+  .bar{gap:8px 12px}
+  .brand{display:none}
+  .tabs{flex:1 1 100%}
+  .tab{flex:1;padding:0 6px}
+  .month{flex:1 1 100%}
+  .month h1{flex:1;min-width:0;font-size:17px}
+  .side{margin-left:0;width:100%;justify-content:space-between;gap:10px}
+  .tname{font-size:13.5px}
+  .gt .name{padding:0 8px 0 10px}
+  .sticker{padding:3px 8px 3px 6px;font-size:12.5px}
+  .hint .desk{display:none}
+  .card{padding:14px}
+  .donuts{gap:8px}
+  .donuts .card{padding:12px 6px}
+  .dlegend{font-size:12.5px;gap:2px 8px}
+  .sl-big{font-size:52px}
+  .sl-tiles{gap:10px}
+  .tile .tv{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  .cell.pop,.scell.pop{animation:none}
+  .status[data-s="wait"]::before{animation:none}
+}
+/* backup panel */
+.backup{top:calc(64px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:320px}
+.bk-actions{display:flex;flex-wrap:wrap;gap:6px}
+.btn.danger{background-color:var(--red);border-color:var(--red);color:var(--sheet)}
+.btn.danger:hover{background-color:var(--red)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4.6 10.4l3.6 3.6 7.2-7.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Галочки</div>
+    <nav class="tabs" role="tablist" aria-label="Разделы">
+      <button type="button" class="tab" role="tab" data-tab="table" aria-selected="true">Таблица</button>
+      <button type="button" class="tab" role="tab" data-tab="stats" aria-selected="false">Статистика</button>
+      <button type="button" class="tab" role="tab" data-tab="sleep" aria-selected="false">Сон</button>
+    </nav>
+    <nav class="month" aria-label="Месяц">
+      <button type="button" class="icon-btn" id="prev" aria-label="Предыдущий месяц"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h1 id="month-title">&nbsp;</h1>
+      <button type="button" class="icon-btn" id="next" aria-label="Следующий месяц"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="btn" id="today-btn">Сегодня</button>
+    </nav>
+    <div class="side">
+      <span class="summary" id="summary" hidden></span>
+      <span class="status" id="status" role="status"></span>
+      <button type="button" class="btn" id="backup-btn" aria-haspopup="dialog">Копия</button>
+      <button type="button" class="btn" id="edit-btn" aria-pressed="false">Изменить список</button>
+    </div>
+  </header>
+  <p class="hint" id="hint">Нажмите на клетку: <b class="hv">✓</b> → <b class="hx">✗</b> → пусто. В строке «Сон» нажмите на день и выберите часы.<span class="desk"> Правый клик ставит ✗ сразу, мышью можно протянуть по нескольким дням. Клавиши: стрелки, <kbd>1</kbd> ✓, <kbd>2</kbd> ✗, <kbd>0</kbd> очистить.</span></p>
+  <main class="sheet" id="sheet">
+    <table id="grid" class="gt" aria-label="Задачи по дням"></table>
+    <table id="grid-foot" class="gt foot" aria-label="Итоги и сон"></table>
+  </main>
+  <section class="pane" id="stats" aria-label="Статистика" hidden></section>
+  <section class="pane" id="sleep" aria-label="Сон" hidden></section>
+</div>
+
+<div class="picker" id="picker" role="dialog" aria-labelledby="pk-title" hidden>
+  <div class="pk-head"><span class="pk-title" id="pk-title">Сон</span><button type="button" class="mini" id="pk-close" aria-label="Закрыть"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+  <div class="pk-grid" id="pk-grid"></div>
+  <form class="pk-row" id="pk-form" autocomplete="off">
+    <input id="pk-input" type="text" inputmode="decimal" placeholder="Другое: 7,5 или 7:30" aria-label="Сколько часов спали">
+    <button type="submit" class="btn">OK</button>
+    <button type="button" class="btn" id="pk-clear">Стереть</button>
+  </form>
+</div>
+<div class="picker backup" id="backup" role="dialog" aria-labelledby="bk-title" hidden>
+  <div class="pk-head"><span class="pk-title" id="bk-title">Копия данных</span><button type="button" class="mini" id="bk-close" aria-label="Закрыть"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+  <p class="pk-note">Все отметки хранятся только на этом устройстве. Сохраняйте копию в файл, чтобы не потерять их или перенести на другое устройство.</p>
+  <div class="bk-actions">
+    <button type="button" class="btn" id="bk-save">Сохранить в файл</button>
+    <label class="btn" for="bk-file">Загрузить из файла</label>
+    <input type="file" id="bk-file" accept="application/json,.json" hidden>
+  </div>
+  <div id="bk-confirm" hidden>
+    <p class="pk-note" id="bk-msg"></p>
+    <div class="bk-actions" style="margin-top:8px">
+      <button type="button" class="btn danger" id="bk-yes">Заменить</button>
+      <button type="button" class="btn" id="bk-no">Отмена</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const MONTHS_PREP = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
+  const MONTHS_SHORT = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  const WD = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const SUGGEST = ['Зарядка','Читать книгу','Выпить 2 л воды','Без сладкого','Прогулка','Лечь до 23:00'];
+  const SLEEP_CHIPS = [4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 10];
+  const LS_KEY = 'galochki.v1';
+  const NEXT = {'': 'v', v: 'x', x: ''};
+
+  const ICON_V = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.6 10.4l3.6 3.6 7.2-7.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_X = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.8 5.8l8.4 8.4M14.2 5.8l-8.4 8.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  const ICON_UP = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_DOWN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_DEL = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_PLUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICON_MOON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.4 10.2A5.7 5.7 0 0 1 5.8 2.6a5.7 5.7 0 1 0 7.6 7.6z" fill="currentColor"/></svg>';
+
+  const $ = s => document.querySelector(s);
+  const sheet = $('#sheet'), grid = $('#grid'), foot = $('#grid-foot'), statsEl = $('#stats'), sleepEl = $('#sleep');
+
+  // S: what the page shows. months: {"2026-10": {taskId: {"20": "v" | "x"}}}, sleep: {"2026-10": {"20": 7.5}}
+  const S = {tasks: [], months: {}, sleep: {}, view: null, edit: false, ready: false, src: 'local', cursor: null, tab: 'table', statTask: 'all'};
+  // store: how the page reaches the artifact's database (or this browser when there is none)
+  const store = {
+    mode: 'pending', db: null, uid: null,
+    boardLive: false, boardDirty: false, boardFlying: false,
+    patches: {}, flying: {}, exists: {},
+    timer: 0, fails: 0, resubTimer: 0, lastLoad: 0,
+    monthKey: null, unsubBoard: null, unsubMonth: null,
+  };
+
+  const pad = n => String(n).padStart(2, '0');
+  const ymKey = v => v.y + '-' + pad(v.m + 1);
+  const keyOf = dt => dt.getFullYear() + '-' + pad(dt.getMonth() + 1);
+  const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const newId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const startOfToday = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const pct = (v, x) => v + x ? Math.round(100 * v / (v + x)) : null;
+
+  // sleep: few hours -> red, plenty -> purple, through magenta
+  const sleepHue = h => Math.round((364 - Math.max(0, Math.min(1, (h - 5) / 3)) * 92) % 360);
+  const sleepWord = h => h < 6 ? 'Мало сна' : h < 7 ? 'Маловато' : h < 8 ? 'Нормально' : 'Много сна';
+  const fmtH = h => String(Math.round(h * 10) / 10).replace('.', ',');
+  function fmtHM(h) {
+    let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+    if (mm === 60) { hh++; mm = 0; }
+    return hh + ' ч' + (mm ? ' ' + mm + ' мин' : '');
+  }
+  function parseHours(s) {
+    s = String(s || '').trim().replace(',', '.');
+    let h;
+    const hm = /^(\d{1,2})\s*[:ч]\s*(\d{1,2})\s*(м|мин)?$/.exec(s);
+    if (hm) h = +hm[1] + +hm[2] / 60;
+    else if (/^\d{1,2}(\.\d+)?\s*(ч)?$/.test(s)) h = parseFloat(s);
+    else return null;
+    return h > 0 && h <= 24 ? Math.round(h * 100) / 100 : null;
+  }
+
+  function deepMerge(t, s) {
+    for (const k of Object.keys(s)) {
+      if (isObj(s[k]) && isObj(t[k])) deepMerge(t[k], s[k]);
+      else t[k] = isObj(s[k]) ? clone(s[k]) : s[k];
+    }
+    return t;
+  }
+  // apply {taskId: {day: "v" | "x" | ""}} onto marks; "" clears
+  function overlay(marks, patch) {
+    for (const [t, row] of Object.entries(patch || {})) {
+      for (const [d, v] of Object.entries(row)) {
+        if (v === 'v' || v === 'x') (marks[t] || (marks[t] = {}))[d] = v;
+        else if (marks[t]) { delete marks[t][d]; if (!Object.keys(marks[t]).length) delete marks[t]; }
+      }
+    }
+    return marks;
+  }
+  function overlaySleep(sleep, patch) {
+    for (const [d, v] of Object.entries(patch || {})) {
+      if (typeof v === 'number' && v > 0) sleep[d] = v; else delete sleep[d];
+    }
+    return sleep;
+  }
+  function cleanTasks(t) {
+    return Array.isArray(t) ? t.filter(x => x && typeof x.id === 'string' && typeof x.name === 'string').map(x => ({id: x.id, name: x.name.slice(0, 80)})) : [];
+  }
+  function cleanMarks(m) {
+    const out = {};
+    if (!isObj(m)) return out;
+    for (const [t, row] of Object.entries(m)) {
+      if (!isObj(row)) continue;
+      const r = {};
+      for (const [d, v] of Object.entries(row)) if (/^\d{1,2}$/.test(d) && (v === 'v' || v === 'x')) r[d] = v;
+      if (Object.keys(r).length) out[t] = r;
+    }
+    return out;
+  }
+  function cleanSleep(o) {
+    const out = {};
+    if (isObj(o)) for (const [d, v] of Object.entries(o)) if (/^\d{1,2}$/.test(d) && typeof v === 'number' && v > 0 && v <= 24) out[d] = v;
+    return out;
+  }
+  function cleanByMonth(ms, fn) {
+    const out = {};
+    if (isObj(ms)) for (const [k, v] of Object.entries(ms)) if (/^\d{4}-\d{2}$/.test(k)) out[k] = fn(v);
+    return out;
+  }
+
+  /* ---------- this browser ---------- */
+  function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { return null; } }
+  function lsWrite() {
+    const src = store.mode === 'db' ? 'db' : store.mode === 'local' ? 'local' : S.src;
+    try { localStorage.setItem(LS_KEY, JSON.stringify({src, tasks: S.tasks, months: S.months, sleep: S.sleep})); } catch (e) {}
+  }
+
+  /* ---------- artifact database ---------- */
+  const boardRef = () => store.db.doc('data/users/' + store.uid + '/board');
+  const monthRef = key => store.db.doc('data/users/' + store.uid + '/m-' + key);
+
+  async function connect() {
+    let db = null, uid = null;
+    try {
+      const c = window.claude;
+      if (c && typeof c.use === 'function') {
+        const [d, u] = await Promise.all([c.use('db'), c.use('user')]);
+        db = d;
+        uid = u ? await u.id() : null;
+      }
+    } catch (e) {}
+    if (!db || !uid) return goLocal();
+    store.mode = 'db'; store.db = db; store.uid = uid;
+    subscribe();
+    schedule();
+    paintStatus();
+    if (S.tab !== 'table') loadAll();
+  }
+
+  function subscribe() {
+    try { store.unsubBoard = boardRef().onSnapshot(onBoard, onDbError); }
+    catch (e) { return goLocal('lost'); }
+    watchMonth();
+  }
+
+  function watchMonth() {
+    if (store.mode !== 'db') return;
+    const key = ymKey(S.view);
+    if (store.monthKey === key) return;
+    if (store.unsubMonth) store.unsubMonth();
+    store.monthKey = key;
+    try { store.unsubMonth = monthRef(key).onSnapshot(s => onMonth(key, s), onDbError); }
+    catch (e) { goLocal('lost'); }
+  }
+
+  function onBoard(snap) {
+    const definitive = !snap.metadata.fromCache;
+    if (!snap.exists && !definitive) return;
+    const wasLive = store.boardLive;
+    if (definitive) store.boardLive = true;
+    if (store.boardDirty || store.boardFlying) { if (!wasLive) renderView(); return; }
+    let tasks;
+    if (snap.exists) tasks = cleanTasks(snap.data().tasks);
+    else if (!wasLive && S.src === 'local' && (S.tasks.length || Object.keys(S.sleep).length)) { migrateLocal(); tasks = S.tasks; }
+    else tasks = [];
+    const changed = !same(tasks, S.tasks);
+    const firstShow = !S.ready;
+    S.tasks = tasks; S.ready = true;
+    if (!S.tasks.length) S.edit = false;
+    if (changed) lsWrite();
+    if (changed || !wasLive || firstShow) renderView();
+  }
+
+  // first visit with the database: carry over what this browser kept before
+  function migrateLocal() {
+    store.boardDirty = true;
+    const keys = new Set([...Object.keys(S.months), ...Object.keys(S.sleep)]);
+    for (const k of keys) {
+      const p = {};
+      if (S.months[k] && Object.keys(S.months[k]).length) p.marks = clone(S.months[k]);
+      if (S.sleep[k] && Object.keys(S.sleep[k]).length) p.sleep = clone(S.sleep[k]);
+      if (Object.keys(p).length) store.patches[k] = deepMerge(store.patches[k] || {}, p);
+    }
+    S.src = 'db';
+    schedule();
+  }
+
+  // merge a month document from the store under any edits not yet saved
+  function applyMonthDoc(key, data) {
+    const marks = cleanMarks(data.marks), sleep = cleanSleep(data.sleep);
+    for (const p of [store.flying[key], store.patches[key]]) {
+      if (p) { overlay(marks, p.marks); overlaySleep(sleep, p.sleep); }
+    }
+    if (same(marks, S.months[key] || {}) && same(sleep, S.sleep[key] || {})) return false;
+    S.months[key] = marks; S.sleep[key] = sleep;
+    return true;
+  }
+
+  function onMonth(key, snap) {
+    if (!snap.exists && snap.metadata.fromCache) return;
+    if (snap.exists && !snap.metadata.fromCache) store.exists[key] = true;
+    if (!applyMonthDoc(key, snap.exists ? snap.data() : {})) return;
+    lsWrite();
+    if (key === ymKey(S.view) || S.tab !== 'table') renderView();
+  }
+
+  // stats need every month, not only the one on screen
+  async function loadAll() {
+    if (store.mode !== 'db' || Date.now() - store.lastLoad < 30000) return;
+    store.lastLoad = Date.now();
+    try {
+      const snap = await store.db.collection('data/users/' + store.uid).get();
+      let changed = false;
+      for (const d of snap.docs) {
+        const m = /^m-(\d{4}-\d{2})$/.exec(d.id);
+        if (!m || !d.exists) continue;
+        store.exists[m[1]] = true;
+        if (applyMonthDoc(m[1], d.data() || {})) changed = true;
+      }
+      if (changed) { lsWrite(); renderView(); }
+    } catch (e) { store.lastLoad = 0; }
+  }
+
+  function onDbError(e) {
+    if (e && e.code === 'unavailable') {
+      if (!store.resubTimer) store.resubTimer = setTimeout(resubscribe, 3000);
+      return;
+    }
+    goLocal('lost');
+  }
+
+  function resubscribe() {
+    store.resubTimer = 0;
+    if (store.mode !== 'db') return;
+    try { if (store.unsubBoard) store.unsubBoard(); if (store.unsubMonth) store.unsubMonth(); } catch (e) {}
+    store.monthKey = null;
+    subscribe();
+  }
+
+  function goLocal(reason) {
+    if (store.mode === 'local') return;
+    store.mode = 'local';
+    try { if (store.unsubBoard) store.unsubBoard(); if (store.unsubMonth) store.unsubMonth(); } catch (e) {}
+    clearTimeout(store.timer);
+    store.patches = {}; store.flying = {}; store.boardDirty = false; store.timer = 0;
+    S.src = 'local'; S.ready = true;
+    lsWrite();
+    paintStatus();
+    renderView();
+    if (reason === 'denied') toast('Нет прав сохранять в общее хранилище. Отметки сохраняются только в этом браузере.');
+    else if (reason === 'lost') toast('Хранилище недоступно. Отметки пока сохраняются в этом браузере.');
+  }
+
+  function schedule(delay) {
+    if (store.mode !== 'db') return;
+    clearTimeout(store.timer);
+    store.timer = setTimeout(flush, delay == null ? 300 : delay);
+  }
+
+  function flush() {
+    clearTimeout(store.timer);
+    store.timer = 0;
+    if (store.mode !== 'db') return;
+    if (store.boardDirty && !store.boardFlying) writeBoard();
+    for (const key of Object.keys(store.patches)) if (!store.flying[key]) writeMonth(key);
+  }
+
+  async function writeBoard() {
+    store.boardDirty = false; store.boardFlying = true;
+    paintStatus();
+    try { await boardRef().set({tasks: clone(S.tasks)}); store.fails = 0; }
+    catch (e) { store.boardDirty = true; writeFailed(e); }
+    finally { store.boardFlying = false; }
+    afterWrite();
+  }
+
+  async function writeMonth(key) {
+    const patch = store.patches[key];
+    delete store.patches[key];
+    store.flying[key] = patch;
+    paintStatus();
+    try {
+      try { await monthRef(key).update(clone(patch)); }
+      catch (e) {
+        if (!e || e.code !== 'invalid_argument' || store.exists[key]) throw e;
+        // the month's first entry creates its document
+        await monthRef(key).set({marks: clone(S.months[key] || {}), sleep: clone(S.sleep[key] || {})});
+      }
+      store.exists[key] = true; store.fails = 0;
+    } catch (e) {
+      store.patches[key] = deepMerge(patch, store.patches[key] || {});
+      writeFailed(e);
+    } finally { delete store.flying[key]; }
+    afterWrite();
+  }
+
+  function writeFailed(e) {
+    const code = e && e.code;
+    if (code === 'invalid_argument' || code === 'not_granted' || code === 'transform_error') return goLocal('denied');
+    if (code === 'revoked' || code === 'capability_disabled' || code === 'capability_removed') return goLocal('lost');
+    store.fails++;
+    if (code === 'quota_exceeded') toast('Хранилище заполнено, новые отметки не сохраняются.');
+  }
+
+  function afterWrite() {
+    if (store.mode === 'db' && (store.boardDirty || Object.keys(store.patches).length) && !store.timer) {
+      schedule(store.fails ? Math.min(30000, 1000 * Math.pow(2, store.fails)) : 300);
+    }
+    paintStatus();
+  }
+
+  /* ---------- edits ---------- */
+  const canEditTasks = () => store.mode === 'local' || (store.mode === 'db' && store.boardLive);
+  const taskName = id => (S.tasks.find(t => t.id === id) || {}).name || '';
+
+  function queue(key, patch) {
+    lsWrite();
+    if (store.mode !== 'local') {
+      store.patches[key] = deepMerge(store.patches[key] || {}, patch);
+      schedule();
+    }
+    paintStatus();
+  }
+
+  function setMark(tid, day, val) {
+    const key = ymKey(S.view);
+    const marks = S.months[key] || (S.months[key] = {});
+    const cur = (marks[tid] && marks[tid][day]) || '';
+    if (cur === val) return;
+    const patch = {[tid]: {[day]: val}};
+    overlay(marks, patch);
+    queue(key, {marks: patch});
+    paintCell(tid, day);
+    paintStats();
+  }
+
+  function setSleep(day, hours) {
+    const key = ymKey(S.view);
+    const sl = S.sleep[key] || (S.sleep[key] = {});
+    const cur = sl[day] || '';
+    hours = hours || '';
+    if (cur === hours) return;
+    overlaySleep(sl, {[day]: hours});
+    queue(key, {sleep: {[day]: hours}});
+    if (S.tab === 'table') { paintSleepCell(day); paintSleepAvg(); }
+    else if (S.tab === 'sleep') renderSleep();
+  }
+
+  function boardChanged() {
+    lsWrite();
+    if (store.mode === 'db') { store.boardDirty = true; schedule(); }
+    paintStatus();
+  }
+
+  function addTask(name) {
+    name = String(name || '').trim().slice(0, 80);
+    if (!name || !canEditTasks()) return false;
+    S.tasks.push({id: newId(), name});
+    boardChanged();
+    render();
+    return true;
+  }
+
+  function renameTask(id, name) {
+    const t = S.tasks.find(x => x.id === id);
+    name = String(name || '').trim().slice(0, 80);
+    if (!t || !name || name === t.name) return false;
+    t.name = name;
+    boardChanged();
+    return true;
+  }
+
+  function moveTask(id, dir) {
+    const i = S.tasks.findIndex(t => t.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= S.tasks.length) return;
+    [S.tasks[i], S.tasks[j]] = [S.tasks[j], S.tasks[i]];
+    boardChanged();
+    render();
+  }
+
+  function deleteTask(id) {
+    const i = S.tasks.findIndex(t => t.id === id);
+    if (i < 0) return;
+    const [removed] = S.tasks.splice(i, 1);
+    if (!S.tasks.length) S.edit = false;
+    boardChanged();
+    render();
+    toast('Задача «' + removed.name + '» удалена', 'Вернуть', () => {
+      if (S.tasks.some(t => t.id === removed.id)) return;
+      S.tasks.splice(Math.min(i, S.tasks.length), 0, removed);
+      boardChanged();
+      renderView();
+    });
+  }
+
+  /* ---------- shared bits ---------- */
+  function monthPos(v) {
+    const n = new Date(), {y, m} = v || S.view;
+    const cmp = y !== n.getFullYear() ? Math.sign(y - n.getFullYear()) : Math.sign(m - n.getMonth());
+    return {cmp, today: n.getDate()};
+  }
+  function elapsedDays(v) {
+    v = v || S.view;
+    const {cmp, today} = monthPos(v);
+    return cmp < 0 ? daysIn(v.y, v.m) : cmp === 0 ? today : 0;
+  }
+  function cellLabel(name, d, v) {
+    const state = v === 'v' ? 'выполнено' : v === 'x' ? 'не выполнено' : 'без отметки';
+    return name + ', ' + d + ' ' + MONTHS_GEN[S.view.m] + ': ' + state;
+  }
+  const icon = v => v === 'x' ? ICON_X : ICON_V;
+  const markAt = (tid, dt) => { const m = S.months[keyOf(dt)]; return (m && m[tid] && m[tid][dt.getDate()]) || ''; };
+  const sleepAt = dt => { const s = S.sleep[keyOf(dt)]; return (s && s[dt.getDate()]) || 0; };
+
+  /* ---------- table ---------- */
+  function nameCell(t, i) {
+    const id = esc(t.id);
+    if (S.edit) {
+      return '<th class="name" scope="row"><div class="name-in">' +
+        '<input class="rename" id="rename-' + id + '" data-t="' + id + '" value="' + esc(t.name) + '" maxlength="80" autocomplete="off" aria-label="Название задачи">' +
+        '<button type="button" class="mini" id="up-' + id + '" data-act="up" data-t="' + id + '" aria-label="Поднять выше"' + (i === 0 ? ' disabled' : '') + '>' + ICON_UP + '</button>' +
+        '<button type="button" class="mini" id="down-' + id + '" data-act="down" data-t="' + id + '" aria-label="Опустить ниже"' + (i === S.tasks.length - 1 ? ' disabled' : '') + '>' + ICON_DOWN + '</button>' +
+        '<button type="button" class="mini danger" data-act="del" data-t="' + id + '" aria-label="Удалить задачу">' + ICON_DEL + '</button>' +
+        '</div></th>';
+    }
+    return '<th class="name" scope="row"><div class="name-in"><span class="tname" title="' + esc(t.name) + '">' + esc(t.name) +
+      '</span><span class="tcount" data-count="' + id + '"></span></div></th>';
+  }
+
+  function addRow(days) {
+    const off = canEditTasks() ? '' : ' disabled';
+    let tail = '';
+    if (!S.tasks.length) {
+      tail = '<div class="sugg"><span class="sugg-l">Впишите свою задачу слева или выберите:</span>' +
+        SUGGEST.map(s => '<button type="button" class="chip" data-sugg="' + esc(s) + '"' + off + '>' + esc(s) + '</button>').join('') + '</div>';
+    }
+    return '<tr class="add-row"><th class="name" scope="row"><form class="add-form" id="add-form" autocomplete="off">' +
+      '<input id="new-task" type="text" maxlength="80" enterkeyhint="done" placeholder="' + (off ? 'Подключаюсь…' : 'Новая задача') + '" aria-label="Новая задача"' + off + '>' +
+      '<button type="submit" class="add-btn" aria-label="Добавить задачу"' + off + '>' + ICON_PLUS + '</button>' +
+      '</form></th><td class="add-tail" colspan="' + days + '">' + tail + '</td></tr>';
+  }
+
+  function sleepCellInner(d, v) {
+    const label = 'Сон, ' + d + ' ' + MONTHS_GEN[S.view.m] + ': ' + (v ? fmtHM(v) : 'не записан');
+    return {attrs: 'data-has="' + (v ? '1' : '') + '"' + (v ? ' style="--h:' + sleepHue(v) + '"' : '') + ' aria-label="' + esc(label) + '"', text: v ? fmtH(v) : ''};
+  }
+
+  function render() {
+    const {y, m} = S.view, key = ymKey(S.view), days = daysIn(y, m);
+    const {cmp, today} = monthPos();
+    const marks = S.months[key] || {}, sl = S.sleep[key] || {};
+
+    const a = document.activeElement;
+    let refocus = null;
+    if (a && sheet.contains(a)) {
+      if (a.classList.contains('cell')) refocus = {cell: [a.dataset.t, a.dataset.d]};
+      else if (a.classList.contains('scell')) refocus = {scell: a.dataset.d};
+      else if (a.id) refocus = {id: a.id, input: a.tagName === 'INPUT', value: a.value, s: a.selectionStart, e: a.selectionEnd};
+    }
+    const sl0 = sheet.scrollLeft, st0 = sheet.scrollTop;
+
+    const info = [];
+    for (let d = 1; d <= days; d++) {
+      const wd = new Date(y, m, d).getDay();
+      const cls = [];
+      if (wd === 0 || wd === 6) cls.push('we');
+      if (wd === 0) cls.push('sun');
+      if (cmp === 0 && d === today) cls.push('today');
+      if (cmp > 0 || (cmp === 0 && d > today)) cls.push('future');
+      info.push({d, wd, cls: cls.join(' ')});
+    }
+
+    let h = '<thead><tr><th class="name corner" scope="col">Задачи</th>';
+    for (const x of info) h += '<th class="day ' + x.cls + '" scope="col"><span class="wd">' + WD[x.wd] + '</span><span class="dn">' + x.d + '</span></th>';
+    h += '</tr></thead><tbody>';
+
+    if (!S.ready) {
+      h += '<tr><th class="name muted" scope="row">Загружаю…</th><td colspan="' + days + '"></td></tr>';
+    } else {
+      S.tasks.forEach((t, i) => {
+        const row = marks[t.id] || {}, id = esc(t.id);
+        h += '<tr data-task="' + id + '">' + nameCell(t, i);
+        for (const x of info) {
+          const v = row[x.d] || '';
+          h += '<td class="c ' + x.cls + '"><button type="button" class="cell" tabindex="-1" data-t="' + id + '" data-d="' + x.d + '" data-v="' + v +
+            '" aria-label="' + esc(cellLabel(t.name, x.d, v)) + '">' + icon(v) + '</button></td>';
+        }
+        h += '</tr>';
+      });
+      h += addRow(days);
+    }
+    h += '</tbody>';
+    let f = '';
+    if (S.ready) {
+      f = '<tbody>';
+      if (S.tasks.length) {
+        f += '<tr class="tot-row"><th class="name" scope="row">Выполнено</th>';
+        for (const x of info) f += '<td class="tot ' + x.cls + '" data-day="' + x.d + '"><span class="tot-n"></span></td>';
+        f += '</tr>';
+      }
+      f += '<tr class="sleep-row"><th class="name" scope="row"><div class="name-in"><span class="sticker">' + ICON_MOON + 'Сон</span><span class="savg" id="savg"></span></div></th>';
+      for (const x of info) {
+        const c = sleepCellInner(x.d, sl[x.d]);
+        f += '<td class="s ' + x.cls + '"><button type="button" class="scell" tabindex="-1" data-d="' + x.d + '" ' + c.attrs + '>' + c.text + '</button></td>';
+      }
+      f += '</tr></tbody>';
+    }
+
+    grid.style.setProperty('--days', days);
+    foot.style.setProperty('--days', days);
+    grid.innerHTML = h;
+    foot.innerHTML = f;
+    sheet.scrollLeft = sl0; sheet.scrollTop = st0;
+
+    initCursor();
+    paintStats();
+    paintSleepAvg();
+    paintChrome();
+
+    if (refocus) {
+      let el = null;
+      if (refocus.cell) el = cellEl(refocus.cell[0], refocus.cell[1]);
+      else if (refocus.scell) el = scellEl(refocus.scell);
+      else el = document.getElementById(refocus.id);
+      if (el && !el.disabled) {
+        if (refocus.input && el.tagName === 'INPUT') {
+          el.value = refocus.value;
+          try { el.setSelectionRange(refocus.s, refocus.e); } catch (e) {}
+        }
+        el.focus({preventScroll: true});
+      }
+    }
+  }
+
+  function cellEl(tid, d) {
+    for (const b of grid.querySelectorAll('.cell[data-d="' + d + '"]')) if (b.dataset.t === tid) return b;
+    return null;
+  }
+  const scellEl = d => foot.querySelector('.scell[data-d="' + d + '"]');
+
+  function initCursor() {
+    const {cmp, today} = monthPos();
+    const day = cmp === 0 ? today : 1;
+    let el = S.cursor ? cellEl(S.cursor.t, S.cursor.d) : null;
+    if (!el) {
+      const first = grid.querySelector('tbody tr[data-task]');
+      if (first) el = cellEl(first.dataset.task, day);
+    }
+    if (el) el.tabIndex = 0;
+    const s = scellEl(day);
+    if (s) s.tabIndex = 0;
+  }
+
+  function setCursor(b) {
+    grid.querySelectorAll('.cell[tabindex="0"]').forEach(x => { x.tabIndex = -1; });
+    b.tabIndex = 0;
+    S.cursor = {t: b.dataset.t, d: b.dataset.d};
+  }
+
+  function pop(b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+
+  function paintCell(tid, d) {
+    const b = cellEl(tid, d);
+    if (!b) return;
+    const v = ((S.months[ymKey(S.view)] || {})[tid] || {})[d] || '';
+    b.dataset.v = v;
+    b.innerHTML = icon(v);
+    b.setAttribute('aria-label', cellLabel(taskName(tid), d, v));
+    pop(b);
+  }
+
+  function paintSleepCell(d) {
+    const b = scellEl(d);
+    if (!b) return;
+    const v = (S.sleep[ymKey(S.view)] || {})[d] || 0;
+    const c = sleepCellInner(d, v);
+    b.dataset.has = v ? '1' : '';
+    if (v) b.style.setProperty('--h', sleepHue(v)); else b.style.removeProperty('--h');
+    b.setAttribute('aria-label', /aria-label="([^"]*)"/.exec(c.attrs)[1].replace(/&quot;/g, '"'));
+    b.textContent = c.text;
+    pop(b);
+  }
+
+  function sleepAvg(key) {
+    const vals = Object.values(S.sleep[key] || {});
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  }
+
+  function paintSleepAvg() {
+    const el = $('#savg');
+    if (!el) return;
+    const avg = sleepAvg(ymKey(S.view));
+    el.textContent = avg ? 'ø ' + fmtH(avg) + ' ч' : '';
+    el.title = avg ? 'В среднем за месяц: ' + fmtHM(avg) : '';
+    if (avg) el.style.setProperty('--h', sleepHue(avg));
+  }
+
+  function paintStats() {
+    const marks = S.months[ymKey(S.view)] || {}, days = daysIn(S.view.y, S.view.m), elapsed = elapsedDays();
+    const N = S.tasks.length, perDay = new Array(days + 1).fill(0);
+    let done = 0;
+    for (const t of S.tasks) {
+      const row = marks[t.id] || {};
+      for (const d in row) if (row[d] === 'v' && +d <= days) { perDay[+d]++; if (+d <= elapsed) done++; }
+    }
+    grid.querySelectorAll('[data-count]').forEach(el => {
+      const row = marks[el.dataset.count] || {};
+      let n = 0;
+      for (const d in row) if (row[d] === 'v') n++;
+      el.innerHTML = n ? ICON_V + n : '';
+      el.title = n ? 'Выполнено в этом месяце: ' + n : '';
+    });
+    foot.querySelectorAll('td.tot').forEach(td => {
+      const d = +td.dataset.day, n = perDay[d] || 0, s = td.firstElementChild;
+      s.textContent = n ? String(n) : '';
+      s.style.setProperty('--p', N ? (n / N).toFixed(2) : '0');
+      s.classList.toggle('full', N > 0 && n === N);
+      td.title = n ? d + ' ' + MONTHS_GEN[S.view.m] + ': ' + n + ' из ' + N : '';
+    });
+    const sum = $('#summary'), possible = N * elapsed;
+    if (possible && S.tab === 'table') {
+      sum.innerHTML = '<b>' + Math.round(100 * done / possible) + '%</b> выполнено за месяц';
+      sum.title = 'Галочек: ' + done + ' из ' + possible + ' за прошедшие дни месяца';
+      sum.hidden = false;
+    } else sum.hidden = true;
+  }
+
+  function paintChrome() {
+    const eb = $('#edit-btn');
+    eb.textContent = S.edit ? 'Готово' : 'Изменить список';
+    eb.setAttribute('aria-pressed', String(S.edit));
+    eb.hidden = S.tab !== 'table' || (!S.tasks.length && !S.edit);
+    eb.disabled = !canEditTasks();
+    sheet.classList.toggle('is-edit', S.edit);
+  }
+
+  function paintStatus() {
+    const el = $('#status');
+    let s, t;
+    if (store.mode === 'local') { s = 'ok'; t = 'Сохранено'; }
+    else if (store.mode === 'pending') { s = 'wait'; t = 'Подключаюсь…'; }
+    else if (store.fails) { s = 'err'; t = 'Нет связи, повторяю…'; }
+    else if (store.boardDirty || store.boardFlying || Object.keys(store.patches).length || Object.keys(store.flying).length) { s = 'wait'; t = 'Сохраняю…'; }
+    else { s = 'ok'; t = 'Сохранено'; }
+    el.dataset.s = s;
+    el.textContent = t;
+    el.title = 'Данные хранятся на этом устройстве. Копию в файл можно сделать кнопкой «Копия».';
+  }
+
+  function scrollToToday(smooth) {
+    const th = grid.querySelector('th.day.today');
+    if (!th) return;
+    // today near the right edge, with a few upcoming days still visible
+    const x = th.offsetLeft + th.offsetWidth * 4 - sheet.clientWidth;
+    sheet.scrollTo({left: Math.max(0, x), behavior: smooth ? 'smooth' : 'auto'});
+  }
+
+  function moveFocus(b, dr, dc) {
+    const ri = S.tasks.findIndex(t => t.id === b.dataset.t);
+    if (ri < 0) return;
+    const days = daysIn(S.view.y, S.view.m);
+    const r = Math.max(0, Math.min(S.tasks.length - 1, ri + dr));
+    const d = Math.max(1, Math.min(days, +b.dataset.d + dc));
+    const el = cellEl(S.tasks[r].id, d);
+    if (el) { setCursor(el); el.focus(); }
+  }
+
+  /* ---------- donuts ---------- */
+  // green share = done, red share = missed, 2px surface gap between them
+  function donut(v, x, size, sw) {
+    const c0 = size / 2, r = (size - sw) / 2, C = 2 * Math.PI * r, tot = v + x;
+    let s = '<svg viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true"><g transform="rotate(-90 ' + c0 + ' ' + c0 + ')">' +
+      '<circle cx="' + c0 + '" cy="' + c0 + '" r="' + r + '" fill="none" style="stroke:var(--line)" stroke-width="' + sw + '"/>';
+    if (tot) {
+      const gap = v && x ? 2 : 0, lv = C * v / tot;
+      const arc = (start, len, color) => '<circle cx="' + c0 + '" cy="' + c0 + '" r="' + r + '" fill="none" style="stroke:' + color + '" stroke-width="' + sw +
+        '" stroke-dasharray="' + Math.max(0.5, len).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-start).toFixed(2) + '"/>';
+      if (v) s += arc(gap / 2, lv - gap, 'var(--ok)');
+      if (x) s += arc(lv + gap / 2, C - lv - gap, 'var(--red)');
+    }
+    return s + '</g></svg>';
+  }
+
+  function countMonth(ids, key) {
+    const m = S.months[key] || {};
+    let v = 0, x = 0;
+    for (const id of ids) {
+      const row = m[id] || {};
+      for (const d in row) { if (row[d] === 'v') v++; else if (row[d] === 'x') x++; }
+    }
+    return {v, x};
+  }
+  function countAll(ids) {
+    let v = 0, x = 0;
+    for (const k of Object.keys(S.months)) { const c = countMonth(ids, k); v += c.v; x += c.x; }
+    return {v, x};
+  }
+  function countLastDays(ids, n) {
+    let v = 0, x = 0;
+    const d = startOfToday();
+    for (let i = 0; i < n; i++) {
+      for (const id of ids) { const k = markAt(id, d); if (k === 'v') v++; else if (k === 'x') x++; }
+      d.setDate(d.getDate() - 1);
+    }
+    return {v, x, empty: n * ids.length - v - x};
+  }
+  // a day counts when every chosen task has ✓
+  function streaks(ids) {
+    if (!ids.length) return {cur: 0, best: 0};
+    const ok = d => ids.every(id => markAt(id, d) === 'v');
+    const today = startOfToday();
+    let cur = 0;
+    const d = new Date(today);
+    if (!ok(d)) d.setDate(d.getDate() - 1);
+    while (ok(d)) { cur++; d.setDate(d.getDate() - 1); }
+    const keys = Object.keys(S.months).filter(k => Object.keys(S.months[k]).length).sort();
+    let best = 0, run = 0;
+    if (keys.length) {
+      const [y0, m0] = keys[0].split('-').map(Number), [y1, m1] = keys[keys.length - 1].split('-').map(Number);
+      const end = new Date(Math.max(today, new Date(y1, m1, 0)));
+      for (const t = new Date(y0, m0 - 1, 1); t <= end; t.setDate(t.getDate() + 1)) {
+        run = ok(t) ? run + 1 : 0;
+        if (run > best) best = run;
+      }
+    }
+    return {cur, best};
+  }
+  const days = n => { const a = n % 10, b = n % 100; return n + ' ' + (a === 1 && b !== 11 ? 'день' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'дня' : 'дней'); };
+
+  function donutCard(label, c, emptyNote) {
+    const p = pct(c.v, c.x);
+    return '<div class="card dcard"><div class="eyebrow">' + esc(label) + '</div>' +
+      '<div class="dwrap" role="img" aria-label="' + esc(label + ': выполнено ' + c.v + ', не выполнено ' + c.x + (p === null ? '' : ', ' + p + '%')) + '">' + donut(c.v, c.x, 120, 14) +
+      '<div class="dc"><b>' + (p === null ? '—' : p + '%') + '</b><span>' + (p === null ? 'нет отметок' : 'выполнено') + '</span></div></div>' +
+      '<div class="dlegend"><span class="lg"><i class="sw-ok"></i>✓ ' + c.v + '</span><span class="lg"><i class="sw-no"></i>✗ ' + c.x + '</span>' +
+      (emptyNote ? '<span class="lg dim">' + emptyNote + '</span>' : '') + '</div></div>';
+  }
+
+  function renderStats() {
+    if (!S.ready) { statsEl.innerHTML = '<div class="pane-in"><div class="card empty-card"><p class="sub">Загружаю…</p></div></div>'; return; }
+    if (!S.tasks.length) {
+      statsEl.innerHTML = '<div class="pane-in"><div class="card empty-card"><h2>Пока нет задач</h2><p class="sub">Добавьте задачи в таблице, отметьте несколько дней, и здесь появятся кружки с процентами.</p><button type="button" class="btn" data-go="table">Открыть таблицу</button></div></div>';
+      return;
+    }
+    if (S.statTask !== 'all' && !S.tasks.some(t => t.id === S.statTask)) S.statTask = 'all';
+    const key = ymKey(S.view), ids = S.statTask === 'all' ? S.tasks.map(t => t.id) : [S.statTask];
+    const title = S.statTask === 'all' ? 'Все задачи' : taskName(S.statTask);
+
+    let list = '<div class="card tlist" role="listbox" aria-label="Задачи"><div class="eyebrow">' + MONTHS[S.view.m] + ', выполнено</div>';
+    const item = (id, name) => {
+      const c = countMonth(id === 'all' ? S.tasks.map(t => t.id) : [id], key), p = pct(c.v, c.x);
+      return '<button type="button" class="titem" role="option" data-stat="' + esc(id) + '" aria-selected="' + (S.statTask === id) + '">' + donut(c.v, c.x, 28, 5) +
+        '<span class="tn">' + esc(name) + '</span><span class="tp">' + (p === null ? '—' : p + '%') + '</span></button>';
+    };
+    list += item('all', 'Все задачи');
+    for (const t of S.tasks) list += item(t.id, t.name);
+    list += '</div>';
+
+    const week = countLastDays(ids, 7);
+    const month = countMonth(ids, key);
+    const mEmpty = Math.max(0, ids.length * elapsedDays() - month.v - month.x);
+    const all = countAll(ids);
+    const st = streaks(ids);
+    const single = ids.length === 1;
+
+    let perfect = 0;
+    for (let d = 1; d <= elapsedDays(); d++) if (ids.every(id => ((S.months[key] || {})[id] || {})[d] === 'v')) perfect++;
+
+    let months12 = '';
+    for (let m = 0; m < 12; m++) {
+      const c = countMonth(ids, S.view.y + '-' + pad(m + 1)), p = pct(c.v, c.x);
+      months12 += '<button type="button" class="mcell" data-month="' + m + '"' + (m === S.view.m ? ' aria-current="true"' : '') +
+        ' aria-label="' + MONTHS[m] + ': ' + (p === null ? 'нет отметок' : p + '%') + '" title="' + MONTHS[m] + ': ✓ ' + c.v + ' · ✗ ' + c.x + '">' +
+        donut(c.v, c.x, 52, 7) + '<span class="mp">' + (p === null ? '—' : p + '%') + '</span><span class="mn">' + MONTHS_SHORT[m] + '</span></button>';
+    }
+
+    statsEl.innerHTML = '<div class="pane-in"><div class="stats-wrap">' + list +
+      '<div class="sdetail">' +
+        '<div><h2>' + esc(title) + '</h2><p class="sub">Зелёная часть круга — дни с ✓, красная — дни с ✗. Процент считается от отмеченных дней.</p></div>' +
+        '<div class="donuts">' +
+          donutCard('7 дней', week, week.empty ? 'без отметки ' + week.empty : '') +
+          donutCard(MONTHS[S.view.m], month, mEmpty ? 'без отметки ' + mEmpty : '') +
+          donutCard('Всё время', all, '') +
+        '</div>' +
+        '<div class="tiles">' +
+          '<div class="card tile"><span class="eyebrow">Серия сейчас</span><span class="tv">' + st.cur + '<small>' + days(st.cur).replace(/^\d+ /, '') + '</small></span><span class="sub">' + (single ? 'дней подряд с ✓' : 'дней подряд, когда всё выполнено') + '</span></div>' +
+          '<div class="card tile"><span class="eyebrow">Лучшая серия</span><span class="tv">' + st.best + '<small>' + days(st.best).replace(/^\d+ /, '') + '</small></span><span class="sub">рекорд за всё время</span></div>' +
+          (single ? '' : '<div class="card tile"><span class="eyebrow">Идеальные дни</span><span class="tv">' + perfect + '<small>' + days(perfect).replace(/^\d+ /, '') + '</small></span><span class="sub">в ' + MONTHS_PREP[S.view.m] + ' выполнено всё</span></div>') +
+        '</div>' +
+        '<div class="card"><h3>По месяцам · ' + S.view.y + '</h3><div class="months12">' + months12 + '</div></div>' +
+      '</div></div></div>';
+  }
+
+  /* ---------- sleep page ---------- */
+  function renderSleep() {
+    if (!S.ready) { sleepEl.innerHTML = '<div class="pane-in"><div class="card empty-card"><p class="sub">Загружаю…</p></div></div>'; return; }
+    const key = ymKey(S.view), sl = S.sleep[key] || {};
+    const entries = Object.entries(sl).map(([d, v]) => ({d: +d, v})).sort((a, b) => a.d - b.d);
+    const avg = sleepAvg(key);
+    const pv = S.view.m ? {y: S.view.y, m: S.view.m - 1} : {y: S.view.y - 1, m: 11};
+    const prevAvg = sleepAvg(ymKey(pv));
+
+    let hero;
+    if (avg) {
+      let cmpLine = '';
+      if (prevAvg) {
+        const diff = Math.round((avg - prevAvg) * 10) / 10;
+        cmpLine = '<p class="sub">' + (diff === 0 ? 'Столько же, сколько в ' + MONTHS_PREP[pv.m] : 'На ' + fmtH(Math.abs(diff)) + ' ч ' + (diff > 0 ? 'больше' : 'меньше') + ', чем в ' + MONTHS_PREP[pv.m]) + '</p>';
+      }
+      hero = '<div class="card sl-hero" style="--h:' + sleepHue(avg) + '"><span class="eyebrow">В среднем за ' + MONTHS[S.view.m].toLowerCase() + '</span>' +
+        '<div class="sl-big">' + fmtH(avg) + '<span>ч</span></div>' +
+        '<span class="verdict"><i></i>' + sleepWord(avg) + '</span>' +
+        '<p class="sub">' + fmtHM(avg) + ' за ночь · записано ночей: ' + entries.length + '</p>' + cmpLine + '</div>';
+    } else {
+      hero = '<div class="card sl-hero none"><span class="eyebrow">В среднем за ' + MONTHS[S.view.m].toLowerCase() + '</span><div class="sl-big">—</div>' +
+        '<span class="verdict"><i></i>Нет записей</span><p class="sub">Нажмите на день на графике ниже или в строке «Сон» внизу таблицы.</p></div>';
+    }
+
+    let w = 0, wn = 0;
+    const d7 = startOfToday();
+    for (let i = 0; i < 7; i++) { const v = sleepAt(d7); if (v) { w += v; wn++; } d7.setDate(d7.getDate() - 1); }
+    const wAvg = wn ? w / wn : 0;
+    const min = entries.reduce((a, b) => !a || b.v < a.v ? b : a, null);
+    const max = entries.reduce((a, b) => !a || b.v > a.v ? b : a, null);
+    const short = entries.filter(e => e.v < 6).length;
+    const tile = (label, value, sub, h) => '<div class="card tile"><span class="eyebrow">' + label + '</span><span class="tv">' +
+      (h != null ? '<i class="dotv" style="--h:' + h + '"></i>' : '') + value + '</span><span class="sub">' + sub + '</span></div>';
+    const tiles = '<div class="sl-tiles">' +
+      tile('Последние 7 ночей', wAvg ? fmtH(wAvg) + '<small>ч</small>' : '—', wn ? 'в среднем, записано ' + wn + ' из 7' : 'нет записей', wAvg ? sleepHue(wAvg) : null) +
+      tile('Ночей меньше 6 ч', String(short), 'в ' + MONTHS_PREP[S.view.m], null) +
+      tile('Самая короткая', min ? fmtH(min.v) + '<small>ч</small>' : '—', min ? min.d + ' ' + MONTHS_GEN[S.view.m] : 'нет записей', min ? sleepHue(min.v) : null) +
+      tile('Самая длинная', max ? fmtH(max.v) + '<small>ч</small>' : '—', max ? max.d + ' ' + MONTHS_GEN[S.view.m] : 'нет записей', max ? sleepHue(max.v) : null) +
+      '</div>';
+
+    sleepEl.innerHTML = '<div class="pane-in"><div class="sl-top">' + hero + tiles + '</div>' +
+      '<div class="card"><div class="chart-head"><h3>Сон по дням · ' + MONTHS[S.view.m] + '</h3><span class="sub">Нажмите на день, чтобы записать или поправить</span></div>' +
+      '<div class="chart" id="sl-chart"></div>' +
+      '<div class="sl-legend"><span class="scale">мало<i></i>много</span><span class="bandkey"><i></i>норма 7–9 ч</span>' + (avg ? '<span class="avgkey"><i></i>среднее за месяц</span>' : '') + '</div></div></div>';
+    drawSleepChart();
+  }
+
+  let chartW = 0;
+  function drawSleepChart() {
+    const el = $('#sl-chart');
+    if (!el) return;
+    const W = Math.max(280, Math.round(el.clientWidth || 600));
+    chartW = W;
+    const H = 240, pl = 30, pr = 8, pt = 16, pb = 26, iw = W - pl - pr, ih = H - pt - pb;
+    const {y, m} = S.view, key = ymKey(S.view), n = daysIn(y, m), sl = S.sleep[key] || {};
+    const {cmp, today} = monthPos();
+    const vals = Object.values(sl), avg = sleepAvg(key);
+    const ymax = Math.max(12, Math.ceil(Math.max(0, ...vals) / 4) * 4);
+    const Y = h => pt + ih - h / ymax * ih, step = iw / n, bw = Math.max(4, Math.min(24, step * 0.6)), base = Y(0);
+
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" role="group" aria-label="Сон по дням">';
+    s += '<rect class="band" x="' + pl + '" y="' + Y(9) + '" width="' + iw + '" height="' + (Y(7) - Y(9)) + '"/>';
+    for (let t = 0; t <= ymax; t += 4) {
+      s += '<line class="' + (t ? 'grid-l' : 'base') + '" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + Y(t) + '" y2="' + Y(t) + '"/>';
+      s += '<text x="' + (pl - 6) + '" y="' + (Y(t) + 4) + '" text-anchor="end">' + t + (t ? '' : '') + '</text>';
+    }
+    s += '<text x="' + (pl - 6) + '" y="' + (pt - 5) + '" text-anchor="end">ч</text>';
+    for (let d = 1; d <= n; d++) {
+      const cx = pl + step * (d - 0.5), v = sl[d] || 0;
+      const label = d + ' ' + MONTHS_GEN[m] + ': ' + (v ? fmtHM(v) : 'не записано');
+      s += '<rect class="hit" x="' + (cx - step / 2) + '" y="' + pt + '" width="' + step + '" height="' + (ih + pb) + '" rx="4" data-d="' + d + '" tabindex="0" role="button" aria-label="' + esc(label) + '"/>';
+      if (v) {
+        const top = Y(v), r = Math.min(4, bw / 2, base - top), x0 = cx - bw / 2, x1 = cx + bw / 2;
+        s += '<path class="bar" style="fill:hsl(' + sleepHue(v) + ',70%,var(--sl-mark))" d="M' + x0 + ',' + base + 'V' + (top + r) + 'Q' + x0 + ',' + top + ' ' + (x0 + r) + ',' + top +
+          'H' + (x1 - r) + 'Q' + x1 + ',' + top + ' ' + x1 + ',' + (top + r) + 'V' + base + 'Z"/>';
+        if (step >= 30) s += '<text class="vl" x="' + cx + '" y="' + (top - 5) + '" text-anchor="middle">' + fmtH(v) + '</text>';
+      } else {
+        s += '<rect class="stub" x="' + (cx - bw / 2) + '" y="' + (base - 3) + '" width="' + bw + '" height="3" rx="1.5"/>';
+      }
+      if (step >= 20 || d === 1 || d % 5 === 0 || (cmp === 0 && d === today)) {
+        s += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle"' + (cmp === 0 && d === today ? ' class="today"' : '') + '>' + d + '</text>';
+      }
+    }
+    if (avg) s += '<line class="avg" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + Y(avg) + '" y2="' + Y(avg) + '"/>';
+    s += '</svg><div class="tip" id="sl-tip" hidden></div>';
+    el.innerHTML = s;
+  }
+
+  /* ---------- sleep picker ---------- */
+  const picker = $('#picker');
+  let pk = null;
+  function openPicker(day, anchor) {
+    const v = (S.sleep[ymKey(S.view)] || {})[day] || 0;
+    pk = {day: +day, anchor};
+    $('#pk-title').textContent = 'Сон · ' + day + ' ' + MONTHS_GEN[S.view.m];
+    $('#pk-grid').innerHTML = SLEEP_CHIPS.map(h => '<button type="button" class="pk-chip" data-val="' + h + '" style="--h:' + sleepHue(h) + '" aria-pressed="' + (v === h) + '">' + fmtH(h) + '</button>').join('');
+    const inp = $('#pk-input');
+    inp.value = v && !SLEEP_CHIPS.includes(v) ? fmtH(v) : '';
+    $('#pk-clear').disabled = !v;
+    picker.hidden = false;
+    if (window.innerWidth < 640) {
+      picker.classList.add('as-sheet');
+      picker.style.left = ''; picker.style.top = '';
+    } else {
+      picker.classList.remove('as-sheet');
+      const r = anchor.getBoundingClientRect(), w = picker.offsetWidth, h = picker.offsetHeight;
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+      let top = r.top - h - 8;
+      if (top < 8) top = Math.min(window.innerHeight - h - 8, r.bottom + 8);
+      picker.style.left = left + 'px'; picker.style.top = top + 'px';
+    }
+    if (window.matchMedia('(hover: hover)').matches) inp.focus({preventScroll: true});
+    else picker.querySelector('.pk-chip[aria-pressed="true"]')?.focus({preventScroll: true});
+  }
+  function closePicker(refocus) {
+    if (picker.hidden) return;
+    picker.hidden = true;
+    const a = pk && pk.anchor;
+    pk = null;
+    if (refocus && a && a.isConnected) a.focus({preventScroll: true});
+  }
+  function pickValue(h) {
+    if (!pk) return;
+    setSleep(pk.day, h);
+    closePicker(true);
+  }
+  $('#pk-grid').addEventListener('click', e => { const b = e.target.closest('[data-val]'); if (b) pickValue(+b.dataset.val); });
+  $('#pk-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const h = parseHours($('#pk-input').value);
+    if (h === null) { toast('Введите часы числом, например 7,5 или 7:30'); return; }
+    pickValue(h);
+  });
+  $('#pk-clear').addEventListener('click', () => pickValue(''));
+  $('#pk-close').addEventListener('click', () => closePicker(true));
+  picker.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closePicker(true); } });
+  document.addEventListener('pointerdown', e => {
+    if (picker.hidden || picker.contains(e.target)) return;
+    if (pk && pk.anchor && pk.anchor.contains(e.target)) return;
+    closePicker(false);
+  }, true);
+
+  /* ---------- views ---------- */
+  function renderView() {
+    $('#month-title').textContent = MONTHS[S.view.m] + ' ' + S.view.y;
+    document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+    sheet.hidden = S.tab !== 'table';
+    $('#hint').hidden = S.tab !== 'table';
+    statsEl.hidden = S.tab !== 'stats';
+    sleepEl.hidden = S.tab !== 'sleep';
+    if (S.tab === 'table') render();
+    else {
+      if (S.tab === 'stats') renderStats(); else renderSleep();
+      paintStats();
+      paintChrome();
+    }
+  }
+
+  function setTab(t) {
+    if (t === S.tab) return;
+    S.tab = t;
+    try { localStorage.setItem('galochki.tab', t); } catch (e) {}
+    closePicker(false);
+    renderView();
+    if (t === 'table') scrollToToday(false);
+    else loadAll();
+  }
+
+  function showMonth(y, m) {
+    S.view = {y, m};
+    S.cursor = null;
+    closePicker(false);
+    watchMonth();
+    renderView();
+    if (S.tab === 'table') { sheet.scrollLeft = 0; scrollToToday(false); }
+  }
+
+  /* ---------- events ---------- */
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+  $('#prev').addEventListener('click', () => { const {y, m} = S.view; showMonth(m ? y : y - 1, m ? m - 1 : 11); });
+  $('#next').addEventListener('click', () => { const {y, m} = S.view; showMonth(m === 11 ? y + 1 : y, m === 11 ? 0 : m + 1); });
+  $('#today-btn').addEventListener('click', () => {
+    const n = new Date();
+    if (S.view.y !== n.getFullYear() || S.view.m !== n.getMonth()) showMonth(n.getFullYear(), n.getMonth());
+    else if (S.tab === 'table') scrollToToday(true);
+  });
+  $('#edit-btn').addEventListener('click', () => { S.edit = !S.edit && S.tasks.length > 0; render(); });
+
+  let paint = null, suppressClick = false;
+  sheet.addEventListener('pointerdown', e => {
+    suppressClick = false;
+    const b = e.target.closest('.cell');
+    if (!b || e.pointerType !== 'mouse' || e.button !== 0) return;
+    const v = NEXT[b.dataset.v] || '';
+    setMark(b.dataset.t, b.dataset.d, v);
+    setCursor(b);
+    paint = {v};
+    suppressClick = true;
+  });
+  sheet.addEventListener('pointerover', e => {
+    if (!paint) return;
+    const b = e.target.closest('.cell');
+    if (b) setMark(b.dataset.t, b.dataset.d, paint.v);
+  });
+  window.addEventListener('pointerup', () => { paint = null; });
+  window.addEventListener('blur', () => { paint = null; });
+
+  sheet.addEventListener('click', e => {
+    const b = e.target.closest('.cell');
+    if (b) {
+      if (suppressClick) { suppressClick = false; return; }
+      setMark(b.dataset.t, b.dataset.d, NEXT[b.dataset.v] || '');
+      setCursor(b);
+      return;
+    }
+    const sc = e.target.closest('.scell');
+    if (sc) { openPicker(sc.dataset.d, sc); return; }
+    const act = e.target.closest('[data-act]');
+    if (act) {
+      if (act.dataset.act === 'up') moveTask(act.dataset.t, -1);
+      else if (act.dataset.act === 'down') moveTask(act.dataset.t, 1);
+      else if (act.dataset.act === 'del') deleteTask(act.dataset.t);
+      return;
+    }
+    const chip = e.target.closest('[data-sugg]');
+    if (chip) addTask(chip.dataset.sugg);
+  });
+
+  sheet.addEventListener('contextmenu', e => {
+    const b = e.target.closest('.cell');
+    if (!b) return;
+    e.preventDefault();
+    setMark(b.dataset.t, b.dataset.d, b.dataset.v === 'x' ? '' : 'x');
+    setCursor(b);
+  });
+
+  sheet.addEventListener('submit', e => {
+    if (e.target.id !== 'add-form') return;
+    e.preventDefault();
+    const inp = $('#new-task'), name = inp.value;
+    inp.value = '';
+    if (!addTask(name)) inp.value = name;
+    const again = $('#new-task');
+    if (again) again.focus({preventScroll: true});
+  });
+
+  sheet.addEventListener('change', e => {
+    if (e.target.classList.contains('rename')) {
+      if (!renameTask(e.target.dataset.t, e.target.value)) e.target.value = taskName(e.target.dataset.t);
+    }
+  });
+
+  sheet.addEventListener('keydown', e => {
+    const t = e.target;
+    if (t.classList.contains('rename')) {
+      if (e.key === 'Enter') { e.preventDefault(); t.blur(); }
+      else if (e.key === 'Escape') { t.value = taskName(t.dataset.t); t.blur(); }
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (t.classList.contains('scell')) {
+      const d = +t.dataset.d;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const nx = scellEl(Math.max(1, Math.min(daysIn(S.view.y, S.view.m), d + (e.key === 'ArrowRight' ? 1 : -1))));
+        if (nx) { foot.querySelectorAll('.scell[tabindex="0"]').forEach(x => { x.tabIndex = -1; }); nx.tabIndex = 0; nx.focus(); }
+      } else if (/^\d$/.test(e.key)) {
+        e.preventDefault();
+        openPicker(d, t);
+        const inp = $('#pk-input');
+        inp.value = e.key;
+        inp.focus();
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        setSleep(d, '');
+      }
+      return;
+    }
+    if (!t.classList.contains('cell')) return;
+    const k = e.key;
+    let v = null, mv = null;
+    if (k === 'ArrowRight') mv = [0, 1];
+    else if (k === 'ArrowLeft') mv = [0, -1];
+    else if (k === 'ArrowDown') mv = [1, 0];
+    else if (k === 'ArrowUp') mv = [-1, 0];
+    else if (k === 'Home') mv = [0, -99];
+    else if (k === 'End') mv = [0, 99];
+    else if (k === 'Enter' || k === ' ') v = NEXT[t.dataset.v] || '';
+    else if (['1', 'v', 'V', 'м', 'М', '+'].includes(k)) v = 'v';
+    else if (['2', 'x', 'X', 'ч', 'Ч', '-'].includes(k)) v = 'x';
+    else if (['0', 'Backspace', 'Delete'].includes(k)) v = '';
+    else return;
+    e.preventDefault();
+    if (mv) return moveFocus(t, mv[0], mv[1]);
+    setMark(t.dataset.t, t.dataset.d, v);
+    setCursor(t);
+    // typed marks walk down the day's column, so a whole day is filled in one pass
+    if (k !== 'Enter' && k !== ' ') moveFocus(t, 1, 0);
+  });
+
+  statsEl.addEventListener('click', e => {
+    const it = e.target.closest('[data-stat]');
+    if (it) { S.statTask = it.dataset.stat; renderStats(); return; }
+    const mc = e.target.closest('[data-month]');
+    if (mc) { showMonth(S.view.y, +mc.dataset.month); return; }
+    if (e.target.closest('[data-go="table"]')) setTab('table');
+  });
+
+  sleepEl.addEventListener('click', e => {
+    const hit = e.target.closest('.hit');
+    if (hit) openPicker(hit.dataset.d, hit);
+  });
+  sleepEl.addEventListener('keydown', e => {
+    const hit = e.target.closest && e.target.closest('.hit');
+    if (hit && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPicker(hit.dataset.d, hit); }
+  });
+  sleepEl.addEventListener('pointerover', e => {
+    const hit = e.target.closest && e.target.closest('.hit'), tip = $('#sl-tip');
+    if (!tip) return;
+    if (!hit) { tip.hidden = true; return; }
+    const box = $('#sl-chart').getBoundingClientRect(), r = hit.getBoundingClientRect();
+    tip.textContent = hit.getAttribute('aria-label');
+    tip.hidden = false;
+    const half = tip.offsetWidth / 2;
+    tip.style.left = Math.max(half, Math.min(box.width - half, r.left - box.left + r.width / 2)) + 'px';
+  });
+  sleepEl.addEventListener('pointerleave', () => { const tip = $('#sl-tip'); if (tip) tip.hidden = true; });
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      const el = $('#sl-chart');
+      if (S.tab === 'sleep' && el && Math.abs(el.clientWidth - chartW) > 4) drawSleepChart();
+    }).observe(sleepEl);
+  }
+
+  sheet.addEventListener('scroll', () => sheet.classList.toggle('sx', sheet.scrollLeft > 2), {passive: true});
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (store.timer) flush(); }
+    else checkDay();
+  });
+
+  let dayStamp = new Date().toDateString();
+  function checkDay() {
+    const s = new Date().toDateString();
+    if (s !== dayStamp) { dayStamp = s; renderView(); }
+  }
+  setInterval(checkDay, 60000);
+
+  /* ---------- boot ---------- */
+  const now = new Date();
+  S.view = {y: now.getFullYear(), m: now.getMonth()};
+  const saved = lsRead();
+  if (saved && Array.isArray(saved.tasks)) {
+    S.tasks = cleanTasks(saved.tasks);
+    S.months = cleanByMonth(saved.months, cleanMarks);
+    S.sleep = cleanByMonth(saved.sleep, cleanSleep);
+    S.src = saved.src === 'db' ? 'db' : 'local';
+    S.ready = true;
+  }
+  try { const t = localStorage.getItem('galochki.tab'); if (t === 'stats' || t === 'sleep') S.tab = t; } catch (e) {}
+
+  /* ---------- backup to a file ---------- */
+  const bk = $('#backup');
+  let pendingImport = null;
+  function openBackup() {
+    closePicker(false);
+    $('#bk-confirm').hidden = true;
+    pendingImport = null;
+    bk.classList.toggle('as-sheet', window.innerWidth < 640);
+    bk.hidden = false;
+  }
+  function closeBackup() { bk.hidden = true; pendingImport = null; }
+  $('#backup-btn').addEventListener('click', () => { if (bk.hidden) openBackup(); else closeBackup(); });
+  $('#bk-close').addEventListener('click', closeBackup);
+  bk.addEventListener('keydown', e => { if (e.key === 'Escape') closeBackup(); });
+  document.addEventListener('pointerdown', e => {
+    if (!bk.hidden && !bk.contains(e.target) && !$('#backup-btn').contains(e.target)) closeBackup();
+  }, true);
+  $('#bk-save').addEventListener('click', () => {
+    const d = new Date();
+    const name = 'galochki-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.json';
+    const data = {app: 'galochki', version: 1, saved: d.toISOString(), tasks: S.tasks, months: S.months, sleep: S.sleep};
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data)], {type: 'application/json'}));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('Копия сохранена: ' + name);
+  });
+  $('#bk-file').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data || !Array.isArray(data.tasks)) throw new Error('not a backup');
+      pendingImport = {tasks: cleanTasks(data.tasks), months: cleanByMonth(data.months, cleanMarks), sleep: cleanByMonth(data.sleep, cleanSleep)};
+      const nights = Object.values(pendingImport.sleep).reduce((n, o) => n + Object.keys(o).length, 0);
+      $('#bk-msg').textContent = 'В файле задач: ' + pendingImport.tasks.length + ', записей сна: ' + nights + '. Заменить ими всё, что сейчас на этом устройстве?';
+      $('#bk-confirm').hidden = false;
+    } catch (err) {
+      toast('Не получилось прочитать файл. Выберите файл копии Галочек (.json).');
+    }
+  });
+  $('#bk-yes').addEventListener('click', () => {
+    if (!pendingImport) return;
+    S.tasks = pendingImport.tasks; S.months = pendingImport.months; S.sleep = pendingImport.sleep;
+    S.edit = false; S.cursor = null;
+    lsWrite();
+    closeBackup();
+    renderView();
+    toast('Данные загружены из копии');
+  });
+  $('#bk-no').addEventListener('click', () => { pendingImport = null; $('#bk-confirm').hidden = true; });
+
+  // everything lives on this device: no account, no network needed
+  store.mode = 'local';
+  S.src = 'local';
+  S.ready = true;
+  paintStatus();
+  renderView();
+  scrollToToday(false);
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
